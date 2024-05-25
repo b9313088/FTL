@@ -1,0 +1,54 @@
+- L2P是FTL最基本的功能
+- ### 映射工作原理
+	- 映射目的：把邏輯位址轉換為物理位址
+		- 為什麼要轉換？
+			- 因為SSD的host讀寫data都是以sector為單位
+			- 而SSD的儲存單元是nand flash，nand的讀寫是以page為單位
+			- 且nand還有一個特性，刪除data時，不能像HDD一樣想刪幾個byte就刪幾個byte，而是必須以block為單位刪除
+			- 由於兩邊操作方式並不一致，所以中間會需要一張L2P table做轉換
+				- FTL接收到host的讀寫請求時，會透過L2P table轉換為nand flash能接受且對效能最有利的方式來執行
+				- host會以邏輯位址發出讀寫請求
+					- 讀的時候，FTL會把邏輯位址透過P2L table把邏輯位址轉換為物理位址，把物理位址上的data回報給host
+					- 寫的時候，FTL會考慮到效能，選擇一個最適當的物理位址寫入data後，就更新L2P table，描述host指定寫入的邏輯位址是對應到哪個物理地址
+				- 
+	- 一個邏輯位址稱為一個LBA(logical block addrss)
+	- 每個LBA的大小都相同，可能是512B or 4KB or 8KB...
+- ### 映射方式 - 依單位區分
+	- block mapping(塊映射)
+		- 每個邏輯區域對應到一個nand blcok
+		- 佔用空間小、sequence read/write性能好、random read性能好但write性能很差 #已解答的ftl問題
+			- 為什麼random read/write性能不一樣？
+				- 參考[TRAINING - OP 2] FTL by Kelvin Hsu 2021-04-29.mp4
+	- page mapping(頁映射)
+		- 每個邏輯區域對應到一個nand page，或page的一部份
+		- 佔用空間大、sequence read/write性能好、random read/write性能好
+	- Hybrid mapping(混合映射)
+		- 每個邏輯區域對應到一個nand blcok，而在每個邏輯區域中又劃分成好幾個邏輯頁，這些邏輯頁也對應到該nand blcok裡的page
+		- 佔用空間中等、sequence read/write性能好、random read性能好但write性能差 #已解答的ftl問題
+			- 為什麼佔用空間比page level mapping小，最小單位不都是page嗎？
+				- ans: 只有random write時才會再做邏輯頁的劃分，所以佔用空間沒那麼大
+					- 是用超額配置的空間去做邏輯頁的映射表
+					- 參考[TRAINING - OP 2] FTL by Kelvin Hsu 2021-04-29.mp4
+			- 為什麼random read/write性能不一樣？
+- ### L2P table
+	- table size
+		- 假設一個SSD的大小是256GB、LBA是8KB、且每個物理地址需要用4byte來表示
+		- 計算頁映射的table大小：256GB/8KB * 4 = 128KB
+	- L2P table的存放位置
+		- 通常主控的SRAM沒有足夠的SRAM可以塞得下完整的L2P table，所以會有幾種儲存L2P的方式
+			- 1.有DRAM的SSD可以把L2P完整放進DRAM裡
+			- 2.沒有DRAM的SSD採用兩級映射(二級表象)的方式執行L2P，如下圖所示
+				- ![image.png](../assets/image_1701339604224_0.png)
+				- 一級映射表常駐在SRAM
+				- 二級映射表平常放在nand裡，會依需求把當下需要的部份讀進SRAM
+				- 在2311
+					- 一級映射表 = system lookup table(SLUT)
+						- SLUT指示GMT放在哪裡
+					- 二級映射表 = global mapping table(GMT)
+						- GMT指示user data放在哪裡
+						- 每個GMT大小為64KB，可以對應到64MB的size
+			- 3.HMB(Host Memory Buffer)
+				- host也可以劃分一部分的記憶體給SSD用，SSD就可以把當它自己的DRAM來用
+					- 可以放進自己的L2P，以及內部的快取資料
+			- 三種方式的效能參考：
+			- ![image.png](../assets/image_1701413674096_0.png)
