@@ -38,7 +38,7 @@
 		- 通常主控的SRAM沒有足夠的SRAM可以塞得下完整的L2P table，所以會有幾種儲存L2P的方式
 			- 1.有DRAM的SSD可以把L2P完整放進DRAM裡
 			- 2.沒有DRAM的SSD採用兩級映射(二級表象)的方式執行L2P，如下圖所示
-				- ![image.png](../assets/image_1701339604224_0.png)
+				- ![image.png](../image_1701339604224_0.png)
 				- 一級映射表常駐在SRAM
 				- 二級映射表平常放在nand裡，會依需求把當下需要的部份讀進SRAM
 				- 在2311
