@@ -1,0 +1,6 @@
+- Trim指的是解除L2P的映射關係
+- 當使用者在os刪除檔案時，不會立刻通知SSD，所以此時L2P的映射關係還在，如下圖
+	- ![image](Pasted_image_20231207173608.png)
+- 必須等收到host的通知，才會進行trim的動作
+- ### Trim的流程示意圖
+	- ![image](Pasted_image_20231207173618.png)
